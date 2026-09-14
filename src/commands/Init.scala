@@ -70,8 +70,8 @@ private def offerStartupSync(layout: Layout, url: String): IO[String] = {
 }
 
 /**
- * polio init: guided setup on a terminal. Asks for the remote and binds to it, offers a sync on every
- * shell start, and reports the commands to use next. Without a terminal it fails and names bind.
+ * polio init: guided setup on a terminal. Asks for the remote and binds to it, offers the common config
+ * files found on this host, offers a sync on every shell start, and reports the commands to use next. Without a terminal it fails and names bind.
  */
 def init(style: Style): IO[Report] =
   for
@@ -81,5 +81,6 @@ def init(style: Style): IO[Report] =
     current     <- Git.in(layout.repo).originUrl.redeem(_ => None, Some(_))
     url         <- askRemote(current)
     bound       <- bind(url)
+    picked      <- suggest(style)
     startup     <- offerStartupSync(layout, url)
-  yield Report(bound.rows, bound.notes ::: List(startup, quickStart))
+  yield Report(bound.rows ::: picked.rows, bound.notes ::: picked.notes ::: List(startup, quickStart))

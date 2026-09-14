@@ -12,6 +12,9 @@ object Stdin {
   /** Standard input with no buffer in front of it. */
   private val raw = FileInputStream(FileDescriptor.in)
 
+  /** Reads one byte. -1 at the end of input. */
+  def readByte: Int = raw.read
+
   /**
    * Reads one line, one byte at a time, so nothing after the newline is taken. A later prompt still
    * sees lines that were typed or pasted ahead. None at the end of input.
@@ -52,21 +55,21 @@ object Stdin {
       case Some(a) if Set("n", "no")(a.toLowerCase)  => IO.pure(false)
       case Some(_)                                   => confirm(question, default)
 
-  /**
-   * Whether the file descriptor is a terminal: 0 for stdin, 1 for stdout, 2 for stderr. A child process
-   * that inherits the streams checks it. If that check cannot run, the JVM console check is used.
   /** Whether stdin is a terminal. */
   val isTerminal: IO[Boolean] = isTty(0)
 
+  /**
+   * Whether the file descriptor is a terminal: 0 for stdin, 1 for stdout, 2 for stderr. A child process
+   * that inherits the streams checks it. If that check cannot run, the JVM console check is used.
    */
   def isTty(fd: Int): IO[Boolean] = IO.blocking {
     try
       val pb = new ProcessBuilder("test", "-t", fd.toString)
       pb.redirectInput(Redirect.INHERIT)
+      pb.redirectOutput(Redirect.INHERIT)
+      pb.redirectError(Redirect.INHERIT)
       pb.start.waitFor == 0
     catch
       case _: Exception => System.console != null
-      pb.redirectOutput(Redirect.INHERIT)
-      pb.redirectError(Redirect.INHERIT)
   }
 }

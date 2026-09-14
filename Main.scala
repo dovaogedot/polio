@@ -15,6 +15,9 @@ private enum Action {
   /** polio init: guided setup on a terminal. */
   case Init
 
+  /** polio suggest: pick common config files to track from a list. */
+  case Suggest
+
   /** polio bind: connect this host to the remote at url. */
   case Bind(url: String)
 
@@ -35,8 +38,12 @@ private enum Action {
 }
 
 private val initCommand: Opts[Action] =
-  Opts.subcommand("init", "guided setup: choose the remote, offer a sync on shell start, show the next steps"):
+  Opts.subcommand("init", "guided setup: choose the remote, pick common config files, offer a sync on shell start"):
     Opts(Action.Init)
+
+private val suggestCommand: Opts[Action] =
+  Opts.subcommand("suggest", "pick common config files to track from a list"):
+    Opts(Action.Suggest)
 
 private val bindCommand: Opts[Action] =
   Opts.subcommand("bind", "set the git remote that stores the config files"):
@@ -91,6 +98,7 @@ private val globalOptions: Opts[Unit] = {
 private val command: Command[Action] = {
   val actions =
     initCommand
+      <+> suggestCommand
       <+> bindCommand
       <+> syncCommand
       <+> statusCommand
@@ -116,6 +124,7 @@ object Main extends IOApp {
   private def execute(action: Action, style: Style): IO[ExitCode] = {
     val program: IO[Report] = action match
       case Action.Init         => init(style)
+      case Action.Suggest      => suggest(style)
       case Action.Bind(url)    => bind(url)
       case Action.DoSync(mode) => sync(mode)
       case Action.AbortSync    => syncAbort

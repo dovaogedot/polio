@@ -17,9 +17,10 @@ and put it on your `PATH`.
 ## Use
 
 ```sh
-polio init                                  # guided setup: asks for the remote, offers a sync on shell start
+polio init                                  # guided setup: remote, common config files to track, sync on shell start
 polio bind git@github.com:you/dotfiles.git  # the same without questions; clones into ~/.local/share/polio/repo
 polio add ~/.bashrc                         # track a file (a directory tracks every file inside)
+polio suggest                               # pick common config files to track from a list
 polio sync                                  # pull, reconcile, push (-f: conflicts keep the host copy, -y: the repo copy)
 polio sync --abort                          # discard parked conflicts; both sides stay as they are
 polio status                                # every tracked file and what sync would do; reads local state only
