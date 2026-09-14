@@ -2,6 +2,16 @@
   "name": "@dovaogedot/polio",
   "version": "0.0.0",
   "description": "Sync config files between machines through a git repository",
+  "keywords": [
+    "dotfiles",
+    "config",
+    "sync",
+    "git",
+    "cli",
+    "chezmoi",
+    "yadm",
+    "stow"
+  ],
   "license": "MIT",
   "publishConfig": {
     "access": "public"
