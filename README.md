@@ -31,19 +31,20 @@ With two machines:
 
 ```sh
 # machine A
-polio bind git@github.com:you/dotfiles.git
+polio init
 polio add ~/.bashrc
 polio sync                          # pushes ~/.bashrc
 
 # machine B
 polio init                          # answer with the same remote
 polio sync                          # ~/.bashrc arrives
+vim ~/.bashrc                       # edit the tracked file
 vim ~/.config/git/config
 polio add ~/.config/git/config
-polio sync                          # pushes the git config
+polio sync                          # pushes both files
 
 # machine A
-polio sync                          # the git config arrives
+polio sync                          # both files arrive
 ```
 
 ## How it works
