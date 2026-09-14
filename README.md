@@ -77,7 +77,8 @@ only command that talks to the remote, besides the clone made by `bind` and
 `init`.
 
 `init` can add a line to your shell profile that runs `polio sync -q` when a
-shell starts. Use it with an ssh remote and a key; an https remote asks for a
+shell starts. The sync runs before the prompt appears, so every new shell waits
+for the pull. Use it with an ssh remote and a key; an https remote asks for a
 login on every sync.
 
 ## Yet another?

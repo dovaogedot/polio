@@ -16,6 +16,11 @@ private val quickStart =
      |  polio remove ~/.bashrc  stop tracking; the host copy stays
      |on another machine: polio init, then polio sync""".stripMargin
 
+/** Printed before the shell start question: the sync runs in the foreground, so every new shell waits for it. */
+private val blockingNote =
+  "note: the sync runs before the prompt appears, so every new shell waits for the pull; a slow or unreachable"
+    + " remote makes the wait long, and a file changed on both sides opens the conflict menu in the new shell."
+
 /** Printed when the remote asks for a login, because a sync on shell start then prompts on every new shell. */
 private val loginNote =
   "note: an https remote asks for a login on every sync. For a sync on shell start, use an ssh remote (git@host:path) with a key."
@@ -51,14 +56,17 @@ extension (profile: Path) {
 /** Offers a sync on every shell start and applies the answer. Returns the line that reports the outcome. */
 private def offerStartupSync(layout: Layout, url: String): IO[String] = {
   val login = url.startsWith("http://") || url.startsWith("https://")
-  val note  = IO.blocking(System.err.println(loginNote)).whenA(login)
+  val notes = IO.blocking {
+    System.err.println(blockingNote)
+    if login then System.err.println(loginNote)
+  }
   shellProfile(layout.home) match
     case None          => IO.pure(s"unknown shell; to sync on shell start, add to your profile:\n  $startupLine")
     case Some(profile) =>
       val shown  = layout.display(profile)
       val yes    = Stdin.confirm(s"run polio sync when a shell starts? adds one line to $shown [y/N] ", default = false)
       val enable = profile.enableStartupSync.as(s"sync on shell start: added to $shown")
-      note *> yes.ifM(enable, IO.pure("sync on shell start: skipped"))
+      notes *> yes.ifM(enable, IO.pure("sync on shell start: skipped"))
 }
 
 /**
