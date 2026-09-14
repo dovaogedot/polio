@@ -7,7 +7,7 @@ import com.monovore.decline.{Command, Opts}
 import java.io.{OutputStream, PrintStream}
 
 /** The version that polio prints. */
-val VERSION = "0.2.0"
+val VERSION = "0.3.0"
 
 /** The action that one command line asks for. */
 private enum Action {
