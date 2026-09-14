@@ -67,12 +67,13 @@ final case class Sandbox(root: Path, bin: Path) {
 
   private val gitconfig = root / "gitconfig"
 
-  /** The environment of every child process: the sandbox home, POLIO_HOME, and an isolated git config. */
+  /** The environment of every child process: the sandbox home, POLIO_HOME, an isolated git config, and bash as the shell. */
   private val env = Map(
     "HOME"              -> home.toString,
     "POLIO_HOME"        -> polioHome.toString,
     "GIT_CONFIG_GLOBAL" -> gitconfig.toString,
     "GIT_CONFIG_SYSTEM" -> "/dev/null",
+    "SHELL"             -> "/bin/bash",
   )
 
   /** The host copy of a file tracked at rel under home. */
@@ -100,9 +101,12 @@ final case class Sandbox(root: Path, bin: Path) {
   /** Runs the binary and returns the result, whatever the exit code. */
   def tryPolio(args: (String | Path)*): IO[Run] = exec(bin.toString, args.map(_.toString).toList)
 
+  /** Runs polio with args on a pseudo-terminal and types keys at its prompts. Returns everything it printed. */
+  def onTty(args: String, keys: String): IO[String] =
+    exec("script", List("-qec", s"$bin $args", "/dev/null"), keys) >>= succeeded(s"polio $args on a tty")
+
   /** Runs polio sync on a pseudo-terminal and types keys at its prompts. Returns everything it printed. */
-  def tty(keys: String): IO[String] =
-    exec("script", List("-qec", s"$bin sync", "/dev/null"), keys) >>= succeeded("polio sync on a tty")
+  def tty(keys: String): IO[String] = onTty("sync", keys)
 
   /** Runs git inside the clone, like another host that edits the remote. */
   def git(args: String*): IO[String] = gitIn(repo, args*)

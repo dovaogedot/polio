@@ -56,7 +56,7 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 
 ## Invariants
 
-- Only `sync` talks to the remote, plus `bind` for the clone. `add` and
+- Only `sync` talks to the remote, plus `bind` (and `init`, which calls it) for the clone. `add` and
   `remove` commit locally.
 - A sync pushes only when the remote is missing commits.
 - The host copy is the only side git history cannot restore. Every path that

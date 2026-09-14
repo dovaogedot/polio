@@ -12,6 +12,9 @@ val VERSION = "0.2.0"
 /** The action that one command line asks for. */
 private enum Action {
 
+  /** polio init: guided setup on a terminal. */
+  case Init
+
   /** polio bind: connect this host to the remote at url. */
   case Bind(url: String)
 
@@ -30,6 +33,10 @@ private enum Action {
   /** polio remove: stop tracking the file or directory at path. */
   case Remove(path: String)
 }
+
+private val initCommand: Opts[Action] =
+  Opts.subcommand("init", "guided setup: choose the remote, offer a sync on shell start, show the next steps"):
+    Opts(Action.Init)
 
 private val bindCommand: Opts[Action] =
   Opts.subcommand("bind", "set the git remote that stores the config files"):
@@ -61,7 +68,8 @@ private val removeCommand: Opts[Action] =
 /** The parser for the full command line: polio with all its subcommands. */
 private val command: Command[Action] = {
   val actions =
-    bindCommand
+    initCommand
+      <+> bindCommand
       <+> syncCommand
       <+> statusCommand
       <+> addCommand
@@ -85,6 +93,7 @@ private def silence(out: Boolean, err: Boolean): IO[Unit] = IO.blocking {
 object Main extends IOApp {
   private def execute(action: Action): IO[ExitCode] = {
     val program: IO[String] = action match
+      case Action.Init         => init
       case Action.Bind(url)    => bind(url)
       case Action.DoSync(mode) => sync(mode)
       case Action.AbortSync    => syncAbort

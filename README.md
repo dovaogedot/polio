@@ -17,7 +17,8 @@ and put it on your `PATH`.
 ## Use
 
 ```sh
-polio bind git@github.com:you/dotfiles.git  # once per machine; clones into ~/.polio/repo
+polio init                                  # guided setup: asks for the remote, offers a sync on shell start
+polio bind git@github.com:you/dotfiles.git  # the same without questions; clones into ~/.polio/repo
 polio add ~/.bashrc                         # track a file (a directory tracks every file inside)
 polio sync                                  # pull, reconcile, push (-f: conflicts keep the host copy)
 polio sync --abort                          # discard parked conflicts; both sides stay as they are
@@ -35,7 +36,7 @@ polio add ~/.bashrc
 polio sync                          # pushes ~/.bashrc
 
 # machine B
-polio bind git@github.com:you/dotfiles.git
+polio init                          # answer with the same remote
 polio sync                          # ~/.bashrc arrives
 vim ~/.config/git/config
 polio add ~/.config/git/config
@@ -68,7 +69,12 @@ to tell which side changed:
 
 Changes are committed after each sync, and pushed only when the remote is
 behind. `add` and `remove` commit locally; the next sync pushes. `sync` is the
-only command that talks to the remote, besides the clone made by `bind`.
+only command that talks to the remote, besides the clone made by `bind` and
+`init`.
+
+`init` can add a line to your shell profile that runs `polio sync -q` when a
+shell starts. Use it with an ssh remote and a key; an https remote asks for a
+login on every sync.
 
 ## Yet another?
 
