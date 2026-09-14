@@ -113,24 +113,38 @@ private final case class Outcome(
   hash: Option[String],
 ) {
 
-  /** The report line for this file. None if nothing changed. */
-  def line(recover: Option[String], parkedAt: String): Option[String] = plan match
-    case Plan.Clean    => None
-    case Plan.ToRepo   => Some(s"host -> repo  $target")
-    case Plan.ToHost   => Some(s"repo -> host  $target")
-    case Plan.Conflict =>
-      Some(
-        s"host -> repo  $target (both sides changed: host copy kept)"
-          + recover.map(r => s"\n  overwritten repo copy: $r").getOrElse(""),
-      )
-    case Plan.ConflictRepo =>
-      Some(s"repo -> host  $target (both sides changed: repo copy kept, host copy overwritten)")
-    case Plan.Parked =>
-      Some(s"parked        $target (resolve $parkedAt, then polio sync; or polio sync --abort)")
-    case Plan.Resolved =>
-      Some(s"resolved      $target (parked copy applied to both sides)")
-    case Plan.Missing =>
-      Some(s"missing       $target (gone on host and in repo; polio remove to untrack)")
+  /** The report row for this file. recover is the command that shows an overwritten repo copy. None if nothing changed. */
+  def row(recover: Option[String], parkedAt: String): Option[Row] = {
+    val shown = target.value
+    plan match
+      case Plan.Clean    => None
+      case Plan.ToRepo   => Some(Row(Code.hostChanged, "host -> repo", Tone.Change, shown))
+      case Plan.ToHost   => Some(Row(Code.repoChanged, "repo -> host", Tone.Change, shown))
+      case Plan.Conflict =>
+        val details = recover.map(r => s"overwritten repo copy: $r").toList
+        Some(Row(
+          Code.conflictHostKept,
+          "host -> repo",
+          Tone.Change,
+          shown,
+          "both sides changed: host copy kept",
+          details,
+        ))
+      case Plan.ConflictRepo =>
+        Some(Row(
+          Code.conflictRepoKept,
+          "repo -> host",
+          Tone.Change,
+          shown,
+          "both sides changed: repo copy kept, host copy overwritten",
+        ))
+      case Plan.Parked =>
+        Some(Row(Code.parked, "parked", Tone.Bad, shown, s"resolve $parkedAt, then polio sync; or polio sync --abort"))
+      case Plan.Resolved =>
+        Some(Row(Code.resolved, "resolved", Tone.Change, shown, "parked copy applied to both sides"))
+      case Plan.Missing =>
+        Some(Row(Code.bothGone, "missing", Tone.Bad, shown, "gone on host and in repo; polio remove to untrack"))
+  }
 }
 
 /** The choices the conflict menu offers. */
@@ -275,34 +289,33 @@ private final case class SyncCtx(layout: Layout, mode: ConflictMode, interactive
   }
 }
 
-/** The report for one run: one line per changed file, the count of files that are up to date, and the push status. */
+/** The report for one run: one row per changed file, the count of files that are up to date, and the push status. */
 private def summarize(
   layout: Layout,
   outcomes: List[Outcome],
   pushed: Boolean,
   pushWarning: Option[String],
   preSync: Option[String],
-): String = {
+): Report = {
   val repoDisplay      = layout.display(layout.repo)
   val conflictsDisplay = layout.display(layout.conflictsDir)
-  val fileLines        = outcomes.flatMap { outcome =>
+  val rows             = outcomes.flatMap { outcome =>
     val recover = preSync.filter(_ => outcome.plan == Plan.Conflict).map { ref =>
       val spec   = s"$ref:files/${outcome.repoPath}"
       val quoted = if spec.exists(_.isWhitespace) then s"\"$spec\"" else spec
       s"git -C $repoDisplay show $quoted"
     }
-    outcome.line(recover, conflictsDisplay + "/" + outcome.repoPath)
+    outcome.row(recover, conflictsDisplay + "/" + outcome.repoPath)
   }
   val clean          = outcomes.count(_.plan == Plan.Clean)
   val cleanLine      = Option.when(clean > 0)(s"up to date: $clean file(s)").toList
   val nothingTracked = outcomes.isEmpty.option("nothing tracked — polio add <path>").toList
   val pushLine       = pushWarning.orElse(pushed.option("pushed")).toList
-  val lines          =
-    fileLines
-      ::: cleanLine
+  val notes          =
+    cleanLine
       ::: nothingTracked
       ::: pushLine
-  lines.mkString("\n")
+  Report(rows, notes)
 }
 
 /**
@@ -330,7 +343,7 @@ private def foldLocalCommits(layout: Layout, repo: Git, branch: String): IO[Unit
 }
 
 /** polio sync: pulls, reconciles every tracked file with the host using mode, commits, and pushes. Returns the report. */
-def sync(mode: ConflictMode): IO[String] =
+def sync(mode: ConflictMode): IO[Report] =
   for
     layout      <- Layout.resolve
     _           <- layout.requireBound
@@ -373,7 +386,7 @@ def sync(mode: ConflictMode): IO[String] =
   yield summarize(layout, outcomes, pending && warning.isEmpty, warning, preSync)
 
 /** polio sync --abort: discards every parked conflict. Host and repo copies stay as they are. */
-def syncAbort: IO[String] =
+def syncAbort: IO[Report] =
   for
     layout <- Layout.resolve
     there  <- layout.conflictsDir.isPresent
@@ -387,4 +400,4 @@ def syncAbort: IO[String] =
             if files.isEmpty
             then "no parked conflicts"
             else s"discarded ${files.length} parked conflict(s)"
-  yield message
+  yield Report.notes(message)

@@ -50,7 +50,7 @@ object LayoutSuite extends SandboxSuite {
       check(run.code == 0, s"status failed:\n${run.err}")
         && run.err.has(s"${sb.home / ".polio"} is no longer used")
         && run.err.has(s"rm -rf ${sb.home / ".polio"}")
-        && run.out.has(s"up to date    ~/$rc")
+        && run.out.hasRow("up to date", s"~/$rc")
         && check(clone, "no clone under XDG_DATA_HOME")
         && check(state, "no state under XDG_STATE_HOME")
         && check(!stray, "state.json left in the data root")

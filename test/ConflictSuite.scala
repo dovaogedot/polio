@@ -19,7 +19,7 @@ object ConflictSuite extends SandboxSuite {
       current  <- sb.polio("status")
     yield
       expect.same(0, unsynced)
-        && pending.has("up to date    ~/.bashrc")
+        && pending.hasRow("up to date", "~/.bashrc")
         && pending.has("to push")
         && expect(synced > 0)
         && current.lacks("to push")
@@ -32,7 +32,7 @@ object ConflictSuite extends SandboxSuite {
       out  <- sb.polio("add", sb.host(rc))
       repo <- sb.repoCopy(rc).readText
     yield
-      out.has("already tracked: ~/.bashrc")
+      out.hasRow("already tracked", "~/.bashrc")
         && out.lacks("committed")
         && expect.same("original\n", repo)
   }
@@ -42,7 +42,7 @@ object ConflictSuite extends SandboxSuite {
       _      <- sb.track(rc, "original\n")
       _      <- sb.host(rc).writeText("tweak\n")
       status <- sb.polio("status")
-    yield status.has("modified      ~/.bashrc (polio sync: host -> repo)")
+    yield status.hasRow("modified", "~/.bashrc") && status.has("polio sync: host -> repo")
   }
 
   sandboxed("unknown flags are rejected") { sb =>
@@ -80,7 +80,7 @@ object ConflictSuite extends SandboxSuite {
       out    <- sb.polio("sync")
       repo   <- sb.repoCopy(rc).readText
     yield
-      status.has("conflict      ~/.bashrc")
+      status.hasRow("conflict", "~/.bashrc")
         && out.has("host copy kept")
         && expect.same("host change one\n", repo)
   }
@@ -111,7 +111,7 @@ object ConflictSuite extends SandboxSuite {
       settled <- sb.polio("status")
     yield
       expect.same(before, removed)
-        && pending.has("removed       ~/.bashrc (untracked; polio sync pushes the removal)")
+        && pending.hasRow("removed", "~/.bashrc") && pending.has("polio sync pushes the removal")
         && expect(after > before)
         && settled.lacks("removed")
   }
@@ -124,7 +124,7 @@ object ConflictSuite extends SandboxSuite {
       out    <- sb.polio("sync")
       host   <- sb.host(rc).readText
     yield
-      status.has("missing       ~/.bashrc (gone from the host; polio sync reinstalls it — polio remove to untrack)")
+      status.hasRow("missing", "~/.bashrc") && status.has("gone from the host; polio sync reinstalls it")
         && status.lacks("removed")
         && out.has("repo -> host  ~/.bashrc")
         && expect.same("original\n", host)
@@ -141,6 +141,27 @@ object ConflictSuite extends SandboxSuite {
     yield
       check(host == "repo change\n", s"host copy:\n$host")
         && check(repo == "repo change\n", s"repo copy:\n$repo")
-        && out.has(s"repo -> host  ~/$rc")
+        && out.hasRow("repo -> host", s"~/$rc")
+  }
+
+  sandboxed("--porcelain prints key, tab, target; colors appear on a terminal unless --no-color") { sb =>
+    val rc = ".bashrc"
+    for
+      _         <- sb.track(rc, "one\n")
+      _         <- sb.host(rc).writeText("two\n")
+      porcelain <- sb.polio("--porcelain", "status")
+      piped     <- sb.polio("status")
+      tty       <- sb.onTty("status", "")
+      noColor   <- sb.onTty("status --no-color", "")
+      synced    <- sb.polio("--porcelain", "sync")
+      clean     <- sb.polio("--porcelain", "status")
+    yield
+      check(porcelain.trim == s"M ~/$rc", s"porcelain output:\n$porcelain")
+        && synced.has(s" M ~/$rc")
+        && synced.has("# pushed")
+        && check(clean.isEmpty, s"porcelain status with everything up to date printed:\n$clean")
+        && piped.lacks("\u001b[")
+        && tty.has("\u001b[33mmodified")
+        && noColor.lacks("\u001b[")
   }
 }

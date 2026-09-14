@@ -22,15 +22,14 @@ private object Added {
     path.copyTo(layout.repoFile(target.repoPath)) *> path.sha256.map(Added(target, _))
 
   /**
-   * The report text: one line per new file, one line per file that was already tracked, and a note
-   * about the commit.
+   * The report: one row per new file, one row per file that was already tracked, and a note about
+   * the commit.
    */
-  def report(added: List[Added], skipped: List[Target]): String = {
-    val tracking  = added.map(a => s"tracking ${a.target}")
-    val already   = skipped.map(t => s"already tracked: $t")
+  def report(added: List[Added], skipped: List[Target]): Report = {
+    val tracking  = added.map(a => Row(Code.tracking, "tracking", Tone.Good, a.target.value))
+    val already   = skipped.map(t => Row(Code.alreadyTracked, "already tracked", Tone.Muted, t.value))
     val committed = added.nonEmpty.option(s"committed ${added.length} file(s) — polio sync pushes them").toList
-    val lines     = tracking ::: already ::: committed
-    lines.mkString("\n")
+    Report(tracking ::: already, committed)
   }
 }
 
@@ -54,7 +53,7 @@ extension (layout: Layout) {
  * polio add: starts tracking the file at the path the user typed, or every file inside a directory.
  * Returns the report.
  */
-def add(raw: String): IO[String] =
+def add(raw: String): IO[Report] =
   for
     layout   <- Layout.resolve
     manifest <- Manifest.load(layout)

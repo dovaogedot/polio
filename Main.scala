@@ -68,6 +68,25 @@ private val removeCommand: Opts[Action] =
   Opts.subcommand("remove", "stop tracking a file or directory (host copies stay)"):
     Opts.argument[String]("path").map(Action.Remove(_))
 
+/**
+ * The flags every command takes. run removes them from the command line before the parser sees it, so
+ * here they only describe themselves in the help text.
+ */
+private val globalOptions: Opts[Unit] = {
+  val quiet     = Opts.flag("quiet", "print nothing on stdout", short = "q").orFalse
+  val shush     = Opts.flag("shush", "print nothing on stdout or stderr", short = "s").orFalse
+  val porcelain = Opts
+    .flag(
+      "porcelain",
+      "output for scripts: two-letter codes like git status --short, repo side then host side."
+        + " M changed, A new, D gone, UU conflict, UH/UR conflict with the host/repo copy kept, PP parked, RR resolved,"
+        + " -- untracked, ++ tracking, == already tracked. Up-to-date files are left out; notes start with #",
+    )
+    .orFalse
+  val noColor = Opts.flag("no-color", "no colors; also off when stdout is not a terminal or NO_COLOR is set").orFalse
+  (quiet, shush, porcelain, noColor).tupled.void
+}
+
 /** The parser for the full command line: polio with all its subcommands. */
 private val command: Command[Action] = {
   val actions =
@@ -80,10 +99,9 @@ private val command: Command[Action] = {
   Command(
     name = "polio",
     header =
-      s"polio $VERSION — sync config files across hosts through a git repo; data lives in ~/.local/share/polio"
-        + " and ~/.local/state/polio (XDG dirs; POLIO_HOME puts both in one place); -q/--quiet silences stdout,"
-        + " -s/--shush also stderr",
-  )(actions)
+      s"polio $VERSION — sync config files across hosts through a git repo. Data lives in ~/.local/share/polio and"
+        + " ~/.local/state/polio; POLIO_HOME puts both in one place.",
+  )(globalOptions *> actions)
 }
 
 /** Replaces the chosen output streams with a sink that drops everything written to it. */
@@ -95,9 +113,9 @@ private def silence(out: Boolean, err: Boolean): IO[Unit] = IO.blocking {
 
 /** Entry point. Parses the command line, runs the action, and prints the result or the error. */
 object Main extends IOApp {
-  private def execute(action: Action): IO[ExitCode] = {
-    val program: IO[String] = action match
-      case Action.Init         => init
+  private def execute(action: Action, style: Style): IO[ExitCode] = {
+    val program: IO[Report] = action match
+      case Action.Init         => init(style)
       case Action.Bind(url)    => bind(url)
       case Action.DoSync(mode) => sync(mode)
       case Action.AbortSync    => syncAbort
@@ -105,19 +123,33 @@ object Main extends IOApp {
       case Action.Add(path)    => add(path)
       case Action.Remove(path) => remove(path)
     program.attemptNarrow[PolioError].flatMap:
-      case Right(message) => IO.println(message).whenA(message.nonEmpty).as(ExitCode.Success)
-      case Left(error)    => Console[IO].errorln(error.render).as(ExitCode.Error)
+      case Right(report) =>
+        val text = report.render(style)
+        IO.println(text).whenA(text.nonEmpty).as(ExitCode.Success)
+      case Left(error) =>
+        val text = Ansi.paint("polio:", Tone.Bad.code, style.color) + error.render.stripPrefix("polio:")
+        Console[IO].errorln(text).as(ExitCode.Error)
   }
 
-  /** Handles the -q and -s flags, then runs the rest of the command line. */
+  /** The flags that apply to every command and are taken out before the subcommand parser runs. */
+  private val globalFlags = Set("-q", "--quiet", "-s", "--shush", "--porcelain", "--no-color")
+
+  /**
+   * Handles the global flags, then runs the rest of the command line. Colors are on when stdout is a
+   * terminal, unless --no-color, --porcelain or a non-empty NO_COLOR turns them off.
+   */
   def run(args: List[String]): IO[ExitCode] = {
-    val quiet = args.exists(arg => arg == "-q" || arg == "--quiet")
-    val shush = args.exists(arg => arg == "-s" || arg == "--shush")
-    val rest  = args.filterNot(arg => arg == "-q" || arg == "--quiet" || arg == "-s" || arg == "--shush")
-    silence(quiet || shush, shush) *> dispatch(rest)
+    val quiet     = args.exists(arg => arg == "-q" || arg == "--quiet")
+    val shush     = args.exists(arg => arg == "-s" || arg == "--shush")
+    val porcelain = args.contains("--porcelain")
+    val noColor   = args.contains("--no-color") || envGet("NO_COLOR").exists(_.nonEmpty)
+    val rest      = args.filterNot(globalFlags)
+    val style     = Stdin.isTty(1).map: tty =>
+      Style(color = tty && !noColor && !porcelain, porcelain = porcelain)
+    silence(quiet || shush, shush) *> style.flatMap(dispatch(rest, _))
   }
 
-  private def dispatch(args: List[String]): IO[ExitCode] = args match
+  private def dispatch(args: List[String], style: Style): IO[ExitCode] = args match
     case ("version" | "--version" | "-V") :: Nil => IO.println(s"polio $VERSION").as(ExitCode.Success)
     case _                                       =>
       val argv = args match
@@ -127,5 +159,5 @@ object Main extends IOApp {
       command.parse(argv, sys.env) match
         case Left(help) if help.errors.isEmpty => IO.println(help.toString).as(ExitCode.Success)
         case Left(help)                        => Console[IO].errorln(help.toString).as(ExitCode.Error)
-        case Right(action)                     => execute(action)
+        case Right(action)                     => execute(action, style)
 }

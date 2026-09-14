@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 
 /** polio remove: stops tracking the file or directory at the path the user typed. Host copies stay in place. */
-def remove(raw: String): IO[String] =
+def remove(raw: String): IO[Report] =
   for
     layout   <- Layout.resolve
     manifest <- Manifest.load(layout)
@@ -29,7 +29,5 @@ def remove(raw: String): IO[String] =
     _ <- Git.in(layout.repo).commitIfChanged(s"polio: remove $labels")
 
     untracked = doomed.map: (_, target) =>
-      s"untracked $target (host copy kept)"
-
-    lines = untracked :+ "committed — polio sync pushes"
-  yield lines.mkString("\n")
+      Row(Code.untracked, "untracked", Tone.Change, target.value, "host copy kept")
+  yield Report(untracked, List("committed — polio sync pushes"))

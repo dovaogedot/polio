@@ -35,6 +35,8 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
   the dispatch to the commands.
 - `src/Config.scala`: `Layout` (the paths), `Manifest` (`polio.json`),
   `SyncState` (the per-host hashes), `Doc` (the JSON shape of both files).
+- `src/Report.scala`: `Report`, what a command returns: `Row`s that render as a
+  table, colored by `Tone`, with `Code` as the porcelain letters, and notes; `Style` carries the global output flags.
 - `src/Errors.scala`: `PolioError`, the only failures the CLI reports, and
   `orIoError`, which wraps raw exceptions at the effect boundary.
 - `src/Fs.scala`: file operations as extension methods on `fs2.io.file.Path`.
@@ -59,10 +61,10 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 
 - Only `sync` talks to the remote, plus `bind` (and `init`, which calls it) for the clone. `add` and
   `remove` commit locally.
-- A sync pushes only when the remote is missing commits.
-- The host copy is the only side git history cannot restore. Every path that
 - A sync folds the local commits into one before it pulls, so a push carries the
   net change and `status` reports the paths that differ from the remote.
+- A sync pushes only when the remote is missing commits.
+- The host copy is the only side git history cannot restore. Every path that
   discards it is an explicit choice: `-y`, the menu, or a resolved parked copy.
 - A conflict is parked under `~/.local/share/polio/conflicts/<repo path>` as a file with
   conflict markers. A parked copy wins over every mode until its markers are

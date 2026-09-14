@@ -13,6 +13,16 @@ extension (text: String) {
   def has(needle: String)(using SourceLocation): Expectations =
     check(text.contains(needle), s"«$needle» missing from:\n$text")
 
+  /** Passes if some line is a table row with the label, then the target, in columns split by two or more spaces. Colors are ignored. */
+  def hasRow(label: String, target: String)(using SourceLocation): Expectations = {
+    val plain = text.replaceAll("\\u001b\\[[0-9;?]*[A-Za-z]", "")
+    val rows  = plain.linesIterator.map(_.split("  +", 3).toList)
+    val found = rows.exists:
+      case first :: second :: _ => first == label && second == target
+      case _                    => false
+    check(found, s"row «$label  $target» missing from:\n$text")
+  }
+
   /** Passes if the text does not contain needle. A failure shows the whole text. */
   def lacks(needle: String)(using SourceLocation): Expectations =
     check(!text.contains(needle), s"«$needle» present in:\n$text")

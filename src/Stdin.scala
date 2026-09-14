@@ -53,15 +53,20 @@ object Stdin {
       case Some(_)                                   => confirm(question, default)
 
   /**
-   * Whether stdin is a terminal. A child process that inherits stdin checks it. If that check cannot
-   * run, the JVM console check is used.
+   * Whether the file descriptor is a terminal: 0 for stdin, 1 for stdout, 2 for stderr. A child process
+   * that inherits the streams checks it. If that check cannot run, the JVM console check is used.
+  /** Whether stdin is a terminal. */
+  val isTerminal: IO[Boolean] = isTty(0)
+
    */
-  val isTerminal: IO[Boolean] = IO.blocking {
+  def isTty(fd: Int): IO[Boolean] = IO.blocking {
     try
-      val pb = new ProcessBuilder("test", "-t", "0")
+      val pb = new ProcessBuilder("test", "-t", fd.toString)
       pb.redirectInput(Redirect.INHERIT)
       pb.start.waitFor == 0
     catch
       case _: Exception => System.console != null
+      pb.redirectOutput(Redirect.INHERIT)
+      pb.redirectError(Redirect.INHERIT)
   }
 }

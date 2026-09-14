@@ -36,7 +36,7 @@ object ParkSuite extends SandboxSuite {
         && check(marked.linesIterator.exists(_.startsWith("<<<<<<< host")), s"parked copy lacks markers:\n$marked")
         && expect.same(onHost, host)
         && expect.same(onRemote, repo)
-        && status.has("parked        ~/.bashrc")
+        && status.hasRow("parked", "~/.bashrc")
   }
 
   sandboxed("a parked file holds across syncs without re-asking, on a pipe too") { sb =>
@@ -58,7 +58,7 @@ object ParkSuite extends SandboxSuite {
       repo   <- sb.repoCopy(rc).readText
       left   <- sb.parked(rc).isPresent
     yield
-      status.has("resolved      ~/.bashrc")
+      status.hasRow("resolved", "~/.bashrc")
         && out.has("resolved")
         && out.has("warning: push failed")
         && expect.same(merged, host)

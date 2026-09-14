@@ -8,6 +8,12 @@ object InitSuite extends SandboxSuite {
 
   private val profile = ".bashrc"
 
+  extension (out: String) {
+
+    /** The text after the last prompt. On a pseudo-terminal the typed answers echo early, so the report starts on the prompt's line. */
+    private def report: String = out.substring(out.lastIndexOf("[y/N] ") + "[y/N] ".length)
+  }
+
   sandboxed("init binds the remote, adds the startup sync to the profile and prints the next steps") { sb =>
     for
       out   <- sb.onTty("init", s"${sb.remote}\ny\n")
@@ -15,7 +21,7 @@ object InitSuite extends SandboxSuite {
       bound <- (sb.repo / ".git").isPresent
     yield
       check(bound, "no clone after init")
-        && out.has(s"bound ${sb.remote}")
+        && out.report.hasRow("bound", sb.remote.toString)
         && out.has("polio add ~/.bashrc")
         && shell.has("polio sync -q")
   }
@@ -26,7 +32,7 @@ object InitSuite extends SandboxSuite {
       out   <- sb.onTty("init", "\nn\n")
       shell <- sb.host(profile).readText
     yield
-      out.has(s"bound ${sb.remote}")
+      out.report.hasRow("bound", sb.remote.toString)
         && check(shell.split("\n").count(_.contains("polio sync")) == 1, s"profile:\n$shell")
   }
 
