@@ -37,6 +37,7 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 - `src/Errors.scala`: `PolioError`, the only failures the CLI reports, and
   `orIoError`, which wraps raw exceptions at the effect boundary.
 - `src/Fs.scala`: file operations as extension methods on `fs2.io.file.Path`.
+- `src/Stdin.scala`: unbuffered line reads from stdin and the terminal check the prompts use. Prompts print on stderr, so `-q` hides only results.
 - `src/Git.scala`: the `Git` handle. Every git command is a named operation
   there; no other file spells git arguments.
 - `src/Target.scala`: `Target`, the portable spelling of a tracked file's

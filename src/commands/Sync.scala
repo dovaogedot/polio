@@ -3,9 +3,6 @@ package polio
 import cats.effect.IO
 import cats.syntax.all.*
 import fs2.io.file.Path
-import java.io.{FileDescriptor, FileInputStream}
-import java.lang.ProcessBuilder.Redirect
-import java.nio.charset.StandardCharsets.UTF_8
 import mouse.all.*
 
 /** The result of the three-way comparison for one tracked file. */
@@ -133,46 +130,6 @@ private final case class Outcome(
       Some(s"missing       $target (gone on host and in repo; polio remove to untrack)")
 }
 
-/** The standard input of the process, read without the JVM buffer, so a read takes only the bytes it returns. */
-private object Stdin {
-
-  /** Standard input with no buffer in front of it. */
-  private val raw = FileInputStream(FileDescriptor.in)
-
-  /**
-   * Reads one line, one byte at a time, so nothing after the newline is taken. A later prompt still
-   * sees lines that were typed or pasted ahead. None at the end of input.
-   */
-  def readLine: Option[String] = {
-    val bytes = scala.collection.mutable.ArrayBuffer.empty[Byte]
-    var done = false
-    var eof  = false
-    while !done do
-      val b = raw.read
-      if b < 0 then
-        if bytes.isEmpty then eof = true
-        done = true
-      else if b == 10 then
-        done = true
-      else if b != 13 then
-        bytes += b.toByte
-    if eof then None else Some(String(bytes.toArray, UTF_8))
-  }
-
-  /**
-   * Whether stdin is a terminal. A child process that inherits stdin checks it. If that check cannot
-   * run, the JVM console check is used.
-   */
-  val isTerminal: IO[Boolean] = IO.blocking {
-    try
-      val pb = new ProcessBuilder("test", "-t", "0")
-      pb.redirectInput(Redirect.INHERIT)
-      pb.start.waitFor == 0
-    catch
-      case _: Exception => System.console != null
-  }
-}
-
 /** The choices the conflict menu offers. */
 private enum Choice {
 
@@ -208,12 +165,12 @@ private object Choice {
   /** Reads one choice from the terminal. End of input counts as skip. */
   def ask(target: Target): IO[Choice] =
     IO.blocking {
-      println(menu(target))
+      System.err.println(menu(target))
       var chosen: Option[Choice] = None
       var eof                    = false
       while chosen.isEmpty && !eof do
-        print("choose [l/r/s]: ")
-        System.out.flush
+        System.err.print("choose [l/r/s]: ")
+        System.err.flush
         Stdin.readLine match
           case None        => eof = true
           case Some(input) => chosen = byInput.get(input.trim.toLowerCase)
