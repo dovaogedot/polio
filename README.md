@@ -20,7 +20,7 @@ and put it on your `PATH`.
 polio init                                  # guided setup: asks for the remote, offers a sync on shell start
 polio bind git@github.com:you/dotfiles.git  # the same without questions; clones into ~/.local/share/polio/repo
 polio add ~/.bashrc                         # track a file (a directory tracks every file inside)
-polio sync                                  # pull, reconcile, push (-f: conflicts keep the host copy)
+polio sync                                  # pull, reconcile, push (-f: conflicts keep the host copy, -y: the repo copy)
 polio sync --abort                          # discard parked conflicts; both sides stay as they are
 polio status                                # every tracked file and what sync would do; reads local state only
 polio -q <command>                          # --quiet: suppress stdout; -s / --shush suppresses stderr too
@@ -61,8 +61,9 @@ to tell which side changed:
 - One side changed: that side wins, and the other copy is updated.
 - Both sides changed: polio asks for each file. Keep the local copy, keep the
   repository copy, or skip. `-f` keeps the local copy without asking, and so
-  does a run without a terminal. A replaced repository copy stays in git
-  history; sync prints the command that shows it.
+  does a run without a terminal. `-y` keeps the repository copy without
+  asking. A replaced repository copy stays in git history; sync prints the
+  command that shows it.
 - Skip parks a copy with conflict markers under `~/.local/share/polio/conflicts` and leaves
   both sides alone. Edit it until the markers are gone; the next sync applies
   it to both sides. `polio sync --abort` throws the parked copies away.

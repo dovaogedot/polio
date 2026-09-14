@@ -129,4 +129,18 @@ object ConflictSuite extends SandboxSuite {
         && out.has("repo -> host  ~/.bashrc")
         && expect.same("original\n", host)
   }
+
+  sandboxed("--yolo keeps the repo copy without asking") { sb =>
+    val rc = ".bashrc"
+    for
+      _    <- sb.track(rc, "original\n")
+      _    <- sb.diverge(rc, "host change\n", "repo change\n")
+      out  <- sb.polio("sync", "-y")
+      host <- sb.host(rc).readText
+      repo <- sb.repoCopy(rc).readText
+    yield
+      check(host == "repo change\n", s"host copy:\n$host")
+        && check(repo == "repo change\n", s"repo copy:\n$repo")
+        && out.has(s"repo -> host  ~/$rc")
+  }
 }

@@ -60,6 +60,9 @@ enum ConflictMode {
 
   /** Keep the host copy without asking. */
   case Force
+
+  /** Keep the repo copy without asking. The host copy is replaced. */
+  case Yolo
 }
 
 /** What is known about one tracked file: the hashes of both copies, and the hash recorded at the last sync. */
@@ -215,24 +218,25 @@ private final case class SyncCtx(layout: Layout, mode: ConflictMode, interactive
   }
 
   /**
-   * Resolves a file that changed on both sides. Force keeps the host copy. Ask lets the user choose
-   * for each file, but keeps the host copy if stdin is not a terminal. The host copy is the only side
-   * git history cannot restore, so it is discarded only by an explicit choice.
+   * Resolves a file that changed on both sides. Force keeps the host copy, Yolo the repo copy. Ask lets
+   * the user choose for each file, but keeps the host copy if stdin is not a terminal. The host copy is
+   * the only side git history cannot restore, so it is discarded only by an explicit choice.
    */
   def resolveConflict(facts: Facts): IO[Outcome] = {
     val repoFile  = layout.repoFile(facts.repoPath)
     val keepLocal = facts.hostPath.copyTo(repoFile).as(facts.outcome(Plan.Conflict, facts.hostHash))
+    val keepRepo  = repoFile.copyToHost(facts.hostPath).as(facts.outcome(Plan.ConflictRepo, facts.repoHash))
     mode match
       case ConflictMode.Force => keepLocal
+      case ConflictMode.Yolo  => keepRepo
       case ConflictMode.Ask   =>
         if !interactive then
           keepLocal
         else
           Choice.ask(facts.target).flatMap:
             case Choice.Local => keepLocal
-            case Choice.Repo  =>
-              repoFile.copyToHost(facts.hostPath).as(facts.outcome(Plan.ConflictRepo, facts.repoHash))
-            case Choice.Skip =>
+            case Choice.Repo  => keepRepo
+            case Choice.Skip  =>
               park(facts).as(facts.outcome(Plan.Parked, facts.baseHash))
   }
 

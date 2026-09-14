@@ -47,10 +47,13 @@ private val syncCommand: Opts[Action] =
     val force = Opts
       .flag("force", "keep the host copy when both sides changed", short = "f")
       .as(Action.DoSync(ConflictMode.Force))
+    val yolo = Opts
+      .flag("yolo", "keep the repo copy when both sides changed", short = "y")
+      .as(Action.DoSync(ConflictMode.Yolo))
     val abort = Opts
       .flag("abort", "discard parked conflicts; both sides stay as they are")
       .as(Action.AbortSync)
-    val chosen = force <+> abort
+    val chosen = force <+> yolo <+> abort
     chosen.withDefault(Action.DoSync(ConflictMode.Ask))
 
 private val statusCommand: Opts[Action] =
