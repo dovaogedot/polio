@@ -152,6 +152,26 @@ extension (git: Git) {
       else run("rev-list", "--count", "HEAD").map(count)
   }
 
+  /** Whether origin has the branch, as far as the last fetch or pull knows. */
+  def hasRemote(branch: String): IO[Boolean] = raw("rev-parse", "--verify", "-q", s"origin/$branch").map(_.succeeded)
+
+  /**
+   * The paths whose content differs between origin's branch and HEAD: what a push would carry. Every
+   * tracked path if origin has no such branch yet.
+   */
+  def changedAgainstRemote(branch: String): IO[List[String]] = {
+    val diff = run("diff", "--name-only", s"origin/$branch", "HEAD")
+    val all  = run("ls-files")
+    hasRemote(branch).ifM(diff, all).map(_.split("\n").toList.filter(_.nonEmpty))
+  }
+
+  /**
+   * Replaces every commit after origin's branch with one commit that holds their net change, under
+   * message. No commit is made when the net change is nothing. Returns whether one was made.
+   */
+  def squashOnto(branch: String, message: String): IO[Boolean] =
+    run("reset", "--soft", s"origin/$branch") *> commitIfChanged(message)
+
   /** Pushes HEAD to origin. A failure returns a warning line instead of an error. */
   def pushBestEffort: IO[Option[String]] =
     run("push", "origin", "HEAD").as(none[String]).recover:

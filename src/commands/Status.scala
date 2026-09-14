@@ -50,7 +50,7 @@ def status: IO[String] =
     repo = Git.in(layout.repo)
     branch  <- repo.currentBranch
     pushed  <- Manifest.atOrigin(layout, branch)
-    pending <- repo.pendingPushes(branch)
+    changed <- repo.changedAgainstRemote(branch)
 
     // polio remove drops the manifest entry and commits, so a target origin still
     // tracks and this manifest does not is an untracking waiting to be pushed.
@@ -60,6 +60,5 @@ def status: IO[String] =
     shown   = tracked ::: removed
     lines   = shown.sortBy(_._1).map(_._2)
     nothing = manifest.files.isEmpty.option("nothing tracked — polio add <path>").toList
-    pushes  = Option.when(pending > 0)(s"$pending commit(s) to push — polio sync pushes them").toList
-    all     = lines ::: nothing ::: pushes
-  yield all.mkString("\n")
+    pushes  = Option.when(changed.nonEmpty)(s"${changed.length} path(s) to push — polio sync pushes them").toList
+  yield Report(rows, nothing ::: pushes)

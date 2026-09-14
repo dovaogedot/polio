@@ -61,6 +61,8 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
   `remove` commit locally.
 - A sync pushes only when the remote is missing commits.
 - The host copy is the only side git history cannot restore. Every path that
+- A sync folds the local commits into one before it pulls, so a push carries the
+  net change and `status` reports the paths that differ from the remote.
   discards it is an explicit choice: `-y`, the menu, or a resolved parked copy.
 - A conflict is parked under `~/.local/share/polio/conflicts/<repo path>` as a file with
   conflict markers. A parked copy wins over every mode until its markers are

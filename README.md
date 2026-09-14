@@ -70,7 +70,9 @@ to tell which side changed:
   it to both sides. `polio sync --abort` throws the parked copies away.
 
 Changes are committed after each sync, and pushed only when the remote is
-behind. `add` and `remove` commit locally; the next sync pushes. `sync` is the
+behind. `add` and `remove` commit locally; the next sync folds those commits
+into one and pushes it, so an add and a remove of the same file push nothing.
+`sync` is the
 only command that talks to the remote, besides the clone made by `bind` and
 `init`.
 

@@ -305,6 +305,30 @@ private def summarize(
   lines.mkString("\n")
 }
 
+/**
+ * The message for the commit that holds every local change since the last push: the targets added and
+ * removed against the manifest origin has, or the host name when only file content changed.
+ */
+private def foldMessage(layout: Layout, branch: String): IO[String] =
+  (Manifest.load(layout), Manifest.atOrigin(layout, branch)).mapN { (local, pushed) =>
+    val added   = pushed.droppedFrom(local).sorted.mkString(", ")
+    val removed = local.droppedFrom(pushed).sorted.mkString(", ")
+    val parts   = List(added.nonEmpty.option(s"add $added"), removed.nonEmpty.option(s"remove $removed")).flatten
+    if parts.isEmpty then s"polio: sync from $hostLabel" else parts.mkString("polio: ", "; ", "")
+  }
+
+/**
+ * Folds the commits that origin does not have into one, so a push carries the net change and an add
+ * followed by a remove of the same file pushes nothing. Needs origin to have the branch, and does
+ * nothing with fewer than two local commits.
+ */
+private def foldLocalCommits(layout: Layout, repo: Git, branch: String): IO[Unit] = {
+  val several = repo.pendingPushes(branch).map(_ > 1)
+  val fold    = foldMessage(layout, branch).flatMap: message =>
+    repo.squashOnto(branch, message).void
+  (repo.hasRemote(branch), several).mapN(_ && _) >>= fold.whenA
+}
+
 /** polio sync: pulls, reconciles every tracked file with the host using mode, commits, and pushes. Returns the report. */
 def sync(mode: ConflictMode): IO[String] =
   for
@@ -313,6 +337,7 @@ def sync(mode: ConflictMode): IO[String] =
     interactive <- Stdin.isTerminal
     repo = Git.in(layout.repo)
     branch   <- repo.currentBranch
+    _        <- foldLocalCommits(layout, repo, branch)
     _        <- repo.pull(branch)
     manifest <- Manifest.load(layout)
     state    <- SyncState.load(layout)
