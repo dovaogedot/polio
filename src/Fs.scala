@@ -58,6 +58,23 @@ extension (path: Path) {
       *> write.orIoError("write", path.toString)
   }
 
+  /** Moves the file or directory to dst. The parent of dst is created. Fails if dst exists. */
+  def moveTo(dst: Path): IO[Unit] = {
+    val move = Files[IO].move(path, dst)
+    dst.parent.traverse_(_.ensureDir)
+      *> move.orIoError("move", path.toString)
+  }
+
+  /** Copies the directory and everything inside it to dst. Files that already exist in dst are replaced. */
+  def copyTreeTo(dst: Path): IO[Unit] = {
+    def copyEntry(entry: Path): IO[Unit] = {
+      val target = dst / path.relativize(entry)
+      Files[IO].isDirectory(entry).ifM(target.ensureDir, entry.copyTo(target))
+    }
+    val entries = Files[IO].walk(path).compile.toList.orIoError("walk", path.toString)
+    entries.flatMap(_.traverse_(copyEntry))
+  }
+
   /** Copies the file content. On POSIX systems it also copies the file attributes. */
   def copyTo(dst: Path): IO[Unit] = {
     val flags = CopyFlags(CopyFlag.ReplaceExisting, CopyFlag.CopyAttributes)

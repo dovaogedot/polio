@@ -24,7 +24,7 @@ def homeDir: Either[PolioError, Path] = {
 final case class Layout(
   /** User home directory. */
   home: Path,
-  /** Data root: $POLIO_HOME, or ~/.polio. */
+  /** Data root that holds the clone and the parked copies: POLIO_HOME, or the polio directory under XDG_DATA_HOME. */
   root: Path,
   /** The git clone that holds the manifest and the files. */
   repo: Path,
@@ -32,7 +32,7 @@ final case class Layout(
   filesDir: Path,
   /** The committed manifest inside the repo. */
   manifestPath: Path,
-  /** The state of this host. It lives outside the repo, so it is never committed. */
+  /** The state of this host: POLIO_HOME, or the polio directory under XDG_STATE_HOME. It is never committed. */
   statePath: Path,
   /** Parked conflict copies that wait for a manual fix, stored by repo path. */
   conflictsDir: Path,
@@ -74,22 +74,61 @@ final case class Layout(
 
 object Layout {
 
-  /** The layout of this host. The data root is POLIO_HOME, or .polio in the home directory. */
+  /**
+   * The layout of this host. POLIO_HOME puts everything under one directory. Otherwise the clone and the
+   * parked copies live in XDG_DATA_HOME/polio and the host state in XDG_STATE_HOME/polio, with the XDG
+   * defaults under home. A clone left in ~/.polio is copied over once, with a warning.
+   */
   def resolve: IO[Layout] =
-    IO.fromEither(homeDir).map { home =>
-      val root = envGet("POLIO_HOME").filter(_.nonEmpty) match
-        case Some(raw) => Path(raw).absolute.normalize
-        case None      => home / ".polio"
-      Layout(
-        home = home,
-        root = root,
-        repo = root / "repo",
-        filesDir = root / "repo/files",
-        manifestPath = root / "repo/polio.json",
-        statePath = root / "state.json",
-        conflictsDir = root / "conflicts",
-      )
+    IO.fromEither(homeDir).flatMap { home =>
+      envGet("POLIO_HOME").filter(_.nonEmpty) match
+        case Some(raw) =>
+          val root = Path(raw).absolute.normalize
+          IO.pure(under(home, root, root))
+        case None =>
+          val layout =
+            under(home, xdg(home, "XDG_DATA_HOME", ".local/share"), xdg(home, "XDG_STATE_HOME", ".local/state"))
+          layout.adoptOldData.as(layout)
     }
+
+  /** The polio directory inside the base directory that the XDG variable names, or inside its default under home. */
+  private def xdg(home: Path, variable: String, default: String): Path = {
+    val base = envGet(variable).filter(_.nonEmpty).fold(home / default)(Path(_).absolute.normalize)
+    base / "polio"
+  }
+
+  /** The layout with the clone and the parked copies under root and the host state under stateDir. */
+  private def under(home: Path, root: Path, stateDir: Path): Layout =
+    Layout(
+      home = home,
+      root = root,
+      repo = root / "repo",
+      filesDir = root / "repo/files",
+      manifestPath = root / "repo/polio.json",
+      statePath = stateDir / "state.json",
+      conflictsDir = root / "conflicts",
+    )
+}
+
+extension (layout: Layout) {
+
+  /**
+   * Copies a clone found in ~/.polio into the data and state directories and warns on stderr that ~/.polio
+   * is not used. A ~/.polio without a clone, or an existing data root, leaves everything as it is.
+   */
+  private def adoptOldData: IO[Unit] = {
+    val old         = layout.home / ".polio"
+    val copiedState = layout.root / "state.json"
+    val warning     =
+      s"polio: $old is no longer used; its data was copied to ${layout.root}"
+        + s" and ${layout.statePath.parent.get}. Remove it with: rm -rf $old"
+    val moveState = copiedState.isPresent >>= copiedState.moveTo(layout.statePath).whenA
+    val adopt     = old.copyTreeTo(layout.root)
+      *> moveState
+      *> IO.blocking(System.err.println(warning))
+    val pending = ((old / "repo/.git").isPresent, layout.root.isPresent).mapN(_ && !_)
+    pending >>= adopt.whenA
+  }
 }
 
 /** The shape of polio.json and state.json on disk. */

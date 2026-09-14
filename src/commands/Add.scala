@@ -46,7 +46,7 @@ extension (layout: Layout) {
       case FileKind.Missing     => IO.raiseError(PolioError.Usage(s"no such path: $location"))
       case FileKind.Directory   => location.walkFiles
       case FileKind.RegularFile => IO.pure(List(location))
-    IO.raiseWhen(location.startsWith(layout.root))(ownData) *> files
+    IO.raiseWhen(location.startsWith(layout.root) || location.startsWith(layout.statePath.parent.get))(ownData) *> files
   }
 }
 

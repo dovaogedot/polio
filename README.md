@@ -18,7 +18,7 @@ and put it on your `PATH`.
 
 ```sh
 polio init                                  # guided setup: asks for the remote, offers a sync on shell start
-polio bind git@github.com:you/dotfiles.git  # the same without questions; clones into ~/.polio/repo
+polio bind git@github.com:you/dotfiles.git  # the same without questions; clones into ~/.local/share/polio/repo
 polio add ~/.bashrc                         # track a file (a directory tracks every file inside)
 polio sync                                  # pull, reconcile, push (-f: conflicts keep the host copy)
 polio sync --abort                          # discard parked conflicts; both sides stay as they are
@@ -49,7 +49,7 @@ polio sync                          # the git config arrives
 ## How it works
 
 Your config files stay where they are. polio keeps a clone of your git
-repository in `~/.polio` (or `POLIO_HOME`) with a copy of every tracked file, and a
+repository in `~/.local/share/polio` (`XDG_DATA_HOME`) with a copy of every tracked file, and a
 manifest, `polio.json`, that says where each file lives on a host. Paths under
 the home directory are stored as `~/...`, so hosts with different user names
 share one manifest.
@@ -63,7 +63,7 @@ to tell which side changed:
   repository copy, or skip. `-f` keeps the local copy without asking, and so
   does a run without a terminal. A replaced repository copy stays in git
   history; sync prints the command that shows it.
-- Skip parks a copy with conflict markers under `~/.polio/conflicts` and leaves
+- Skip parks a copy with conflict markers under `~/.local/share/polio/conflicts` and leaves
   both sides alone. Edit it until the markers are gone; the next sync applies
   it to both sides. `polio sync --abort` throws the parked copies away.
 
@@ -83,6 +83,6 @@ Ordered by similarity.
 | Why not | Because |
 |---|---|
 | chezmoi | Edits go to chezmoi's source directory, and `chezmoi apply` writes them to your home. An edit made directly to `~/.bashrc` is drift: the next `apply` wants to overwrite it, and it survives only if you `chezmoi add` it first. With polio you edit `~/.bashrc` itself and `polio sync` carries it to the other machines. |
-| yadm, vcsh | Home becomes a git worktree; conflicts land in live files. polio keeps its clone in `~/.polio`. |
+| yadm, vcsh | Home becomes a git worktree; conflicts land in live files. polio keeps its clone in `~/.local/share/polio`. |
 | dotr, dotdrop, dotter | Deploy from a repository, with profiles and templates to learn; edits come back as a separate step, or not at all. polio syncs in one command. |
 | stow, dotbot, rcm | They link files into place; syncing between machines stays your job. |

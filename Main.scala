@@ -77,8 +77,9 @@ private val command: Command[Action] = {
   Command(
     name = "polio",
     header =
-      s"polio $VERSION — sync config files across hosts through a git repo; data lives in ~/.polio"
-        + " (override with POLIO_HOME); -q/--quiet silences stdout, -s/--shush also stderr",
+      s"polio $VERSION — sync config files across hosts through a git repo; data lives in ~/.local/share/polio"
+        + " and ~/.local/state/polio (XDG dirs; POLIO_HOME puts both in one place); -q/--quiet silences stdout,"
+        + " -s/--shush also stderr",
   )(actions)
 }
 

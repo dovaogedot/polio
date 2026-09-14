@@ -85,9 +85,9 @@ final case class Sandbox(root: Path, bin: Path) {
   /** The parked conflict copy of a file tracked at rel. */
   def parked(rel: String): Path = conflicts / rel
 
-  /** Runs a command in the sandbox environment, with input on its stdin, and waits for it to finish. */
-  def exec(command: String, args: List[String], input: String = ""): IO[Run] =
-    ProcessBuilder(command, args).withExtraEnv(env).spawn[IO].use { p =>
+  /** Runs a command in the sandbox environment, with input on its stdin, and waits for it to finish. extra overrides variables. */
+  def exec(command: String, args: List[String], input: String = "", extra: Map[String, String] = Map.empty): IO[Run] =
+    ProcessBuilder(command, args).withExtraEnv(env ++ extra).spawn[IO].use { p =>
       val feed = Stream.emit(input).through(text.utf8.encode).through(p.stdin).compile.drain
       val out  = p.stdout.through(text.utf8.decode).compile.string
       val err  = p.stderr.through(text.utf8.decode).compile.string
@@ -101,9 +101,20 @@ final case class Sandbox(root: Path, bin: Path) {
   /** Runs the binary and returns the result, whatever the exit code. */
   def tryPolio(args: (String | Path)*): IO[Run] = exec(bin.toString, args.map(_.toString).toList)
 
-  /** Runs polio with args on a pseudo-terminal and types keys at its prompts. Returns everything it printed. */
-  def onTty(args: String, keys: String): IO[String] =
-    exec("script", List("-qec", s"$bin $args", "/dev/null"), keys) >>= succeeded(s"polio $args on a tty")
+  /** Runs the binary without POLIO_HOME, with the XDG base directories under the sandbox root. */
+  def tryXdgPolio(args: (String | Path)*): IO[Run] =
+    exec(bin.toString, args.map(_.toString).toList, extra = xdgEnv)
+
+  /** Empties POLIO_HOME and points the XDG base directories at the sandbox root. */
+  val xdgEnv: Map[String, String] = Map(
+    "POLIO_HOME"     -> "",
+    "XDG_DATA_HOME"  -> (root / "xdg-data").toString,
+    "XDG_STATE_HOME" -> (root / "xdg-state").toString,
+  )
+
+  /** Runs polio with args on a pseudo-terminal and types keys at its prompts. Returns everything it printed. extra overrides variables. */
+  def onTty(args: String, keys: String, extra: Map[String, String] = Map.empty): IO[String] =
+    exec("script", List("-qec", s"$bin $args", "/dev/null"), keys, extra) >>= succeeded(s"polio $args on a tty")
 
   /** Runs polio sync on a pseudo-terminal and types keys at its prompts. Returns everything it printed. */
   def tty(keys: String): IO[String] = onTty("sync", keys)

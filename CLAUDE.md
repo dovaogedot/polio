@@ -1,7 +1,8 @@
 # polio
 
 Config-file sync through a git repository. Everything is named `polio`: the
-executable, the Scala package, the data directory `~/.polio` (or `POLIO_HOME`),
+executable, the Scala package, the data directory `~/.local/share/polio` and the state directory
+`~/.local/state/polio` (XDG base directories; `POLIO_HOME` puts both in one place),
 the manifest `polio.json` in the clone, the AUR package and the platform npm
 packages. The main npm package is `@dovaogedot/polio` because npm rejects the
 bare name.
@@ -61,7 +62,7 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 - A sync pushes only when the remote is missing commits.
 - The host copy is the only side git history cannot restore. Every path that
   discards it is an explicit choice: `-f`, the menu, or a resolved parked copy.
-- A conflict is parked under `~/.polio/conflicts/<repo path>` as a file with
+- A conflict is parked under `~/.local/share/polio/conflicts/<repo path>` as a file with
   conflict markers. A parked copy wins over every mode until its markers are
   gone.
 - A permission failure on a host copy prints the `sudo cp` command that
