@@ -201,11 +201,18 @@ extension (text: String) {
 
 extension (src: Path) {
 
-  /** Copies to a host path. On a permission error, the message names the sudo command that does the copy by hand. */
-  private def copyToHost(hostPath: Path): IO[Unit] =
-    src.copyTo(hostPath).adaptError:
+  /**
+   * Copies to a host path. A host copy that is already there keeps its permissions; only a host copy
+   * that the sync creates takes them from the source. On a permission error, the message names the sudo
+   * command that does the copy by hand.
+   */
+  private def copyToHost(hostPath: Path): IO[Unit] = {
+    val copy = src.copyTo(hostPath).adaptError:
       case e: PolioError.Io if e.cause == "permission denied" =>
         PolioError.Io(e.op, e.path, s"permission denied — run: sudo cp $src $hostPath")
+    hostPath.permissionsIfExists.flatMap: mode =>
+      copy *> mode.traverse_(hostPath.setPermissions)
+  }
 }
 
 /** The values that stay the same during one sync run and that reconciling a file needs. */

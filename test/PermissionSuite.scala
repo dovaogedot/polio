@@ -5,8 +5,8 @@ import cats.syntax.all.*
 import fs2.io.file.{Files, Path, PosixPermissions}
 
 /**
- * The permission hint: when the file system refuses to write a host copy, the error names the sudo
- * command that applies the parked copy by hand.
+ * The permissions of a host copy: the mode it keeps across a sync, and the sudo command the error
+ * names when the file system refuses to write it.
  */
 object PermissionSuite extends SandboxSuite {
 
@@ -29,6 +29,30 @@ object PermissionSuite extends SandboxSuite {
     val lock   = chmod(dir, "555")
     val unlock = chmod(dir, "755")
     Resource.make(lock)(_ => unlock)
+  }
+
+  sandboxed("a host copy the repo replaces keeps its permissions") { sb =>
+    for
+      _    <- sb.track(conf, "original\n")
+      _    <- sb.fromRemote(conf, "repo change\n")
+      _    <- chmod(sb.repoCopy(conf), "644")
+      _    <- chmod(sb.host(conf), "600")
+      _    <- sb.polio("sync")
+      host <- sb.host(conf).readText
+      mode <- sb.host(conf).permissionsIfExists
+    yield
+      expect.same("repo change\n", host)
+        && expect.same("600".some, mode.map(_.toOctalString))
+  }
+
+  sandboxed("a host copy the sync creates takes the permissions of the repo copy") { sb =>
+    for
+      _    <- sb.track(conf, "original\n")
+      _    <- chmod(sb.repoCopy(conf), "640")
+      _    <- sb.host(conf).removeIfExists
+      _    <- sb.polio("sync")
+      mode <- sb.host(conf).permissionsIfExists
+    yield expect.same("640".some, mode.map(_.toOctalString))
   }
 
   sandboxed("a resolution the host directory rejects prints the sudo command") { sb =>

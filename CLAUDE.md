@@ -69,5 +69,8 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 - A conflict is parked under `~/.local/share/polio/conflicts/<repo path>` as a file with
   conflict markers. A parked copy wins over every mode until its markers are
   gone.
+- A sync writes content, not permissions. A host copy that is already there
+  keeps its mode; a host copy the sync creates takes the mode of the repo copy,
+  which git carries only as the executable bit.
 - A permission failure on a host copy prints the `sudo cp` command that
   applies the file by hand.

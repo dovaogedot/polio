@@ -70,6 +70,12 @@ to tell which side changed:
   both sides alone. Edit it until the markers are gone; the next sync applies
   it to both sides. `polio sync --abort` throws the parked copies away.
 
+polio syncs content, not permissions. Git records only whether a file is
+executable, so a mode like `600` never travels between hosts. A host file that
+is already there keeps its permissions. A host file that polio creates takes the
+permissions of the repository copy, which git wrote under the umask of that
+host.
+
 Changes are committed after each sync, and pushed only when the remote is
 behind. `add` and `remove` commit locally; the next sync folds those commits
 into one and pushes it, so an add and a remove of the same file push nothing.

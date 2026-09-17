@@ -132,12 +132,15 @@ final case class Sandbox(root: Path, bin: Path) {
       *> polio("add", host(rel))
       *> polio("sync").void
 
-  /** Edits the tracked file on the host and puts a different edit on the remote, so the next sync has a conflict. */
-  def diverge(rel: String, onHost: String, onRemote: String): IO[Unit] =
-    host(rel).writeText(onHost)
-      *> repoCopy(rel).writeText(onRemote)
+  /** Puts an edit on the remote, as another host would. The host copy stays as it is. */
+  def fromRemote(rel: String, content: String): IO[Unit] =
+    repoCopy(rel).writeText(content)
       *> git("commit", "-qam", s"change $rel from another host")
       *> git("push", "-q", "origin", "main").void
+
+  /** Edits the tracked file on the host and puts a different edit on the remote, so the next sync has a conflict. */
+  def diverge(rel: String, onHost: String, onRemote: String): IO[Unit] =
+    host(rel).writeText(onHost) *> fromRemote(rel, onRemote)
 
   /**
    * Points pushes at a path that does not exist. A push that is tried gives a warning line. A push

@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.syntax.all.*
 import fs2.Stream
 import fs2.hashing.{Hash, HashAlgorithm, Hashing}
-import fs2.io.file.{CopyFlag, CopyFlags, Files, Path}
+import fs2.io.file.{CopyFlag, CopyFlags, Files, Path, PosixPermissions}
 import java.nio.file.{AccessDeniedException, NoSuchFileException}
 
 /** File system operations built on fs2 Files. Failures are reported as PolioError.Io. */
@@ -85,6 +85,18 @@ extension (path: Path) {
     dst.parent.traverse_(_.ensureDir)
       *> copy
   }
+
+  /** The permissions of the file. None if nothing is there, or if the file system has no POSIX permissions. */
+  def permissionsIfExists: IO[Option[PosixPermissions]] =
+    Files[IO]
+      .getPosixPermissions(path)
+      .map(_.some)
+      .recover { case _: NoSuchFileException | _: UnsupportedOperationException => None }
+      .orIoError("stat", path.toString)
+
+  /** Sets the permissions of the file. */
+  def setPermissions(mode: PosixPermissions): IO[Unit] =
+    Files[IO].setPosixPermissions(path, mode).orIoError("chmod", path.toString)
 
   /** Deletes the file if it exists. */
   def removeIfExists: IO[Unit] = Files[IO].deleteIfExists(path).void.orIoError("remove", path.toString)
