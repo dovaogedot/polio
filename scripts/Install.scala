@@ -26,8 +26,22 @@ private def compileNative(out: Path): IO[Unit] = {
       "-o",
       out.toString,
       "-f",
+      // 25.0.1 is the newest GraalVM the coursier index carries for every
+      // platform the release builds on, macOS x64 included.
+      "--graalvm-java-version",
+      "25",
+      "--graalvm-version",
+      "25.0.1",
       "--graalvm-args",
       "--no-fallback",
+      // The image is optimized for size. The throughput it costs is a few
+      // percent, which a process that runs for a second does not feel.
+      "--graalvm-args",
+      "-Os",
+      // Without the property every run prints a JDK deprecation warning on
+      // stderr for the sun.misc.Unsafe call in scala.runtime.LazyVals.
+      "--graalvm-args",
+      "-Dsun.misc.unsafe.memory.access=allow",
       // The builder heap is capped so image generation fits beside the
       // resident build server instead of aborting on low memory.
       "--graalvm-args",

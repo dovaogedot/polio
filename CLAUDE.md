@@ -11,7 +11,16 @@ bare name.
 
 Scala 3 with the `scala` runner (scala-cli) from a plain `project.scala`; no
 sbt. GraalVM native-image builds the binary; the runner downloads GraalVM
-itself. When the tools come from SDKMAN and are not on `PATH`:
+itself.
+
+The build pins GraalVM for JDK 25 at 25.0.1, the newest version the coursier
+index carries for every platform the release builds on. It passes `-Os` for a
+size-optimized image, and `-Dsun.misc.unsafe.memory.access=allow`, which
+silences the JDK warning about the `sun.misc.Unsafe` call in
+`scala.runtime.LazyVals`. `scripts/Install.scala` and
+`.github/workflows/release.yml` carry the same flags.
+
+When the tools come from SDKMAN and are not on `PATH`:
 
 ```sh
 export PATH="$HOME/.sdkman/candidates/scala/current/bin:$HOME/.sdkman/candidates/java/current/bin:$PATH"

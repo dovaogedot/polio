@@ -33,7 +33,12 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y build-essential zlib1g-dev
       - name: Build
-        run: scala-cli --power package --native-image . -o polio -f --graalvm-args --no-fallback
+        run: >
+          scala-cli --power package --native-image . -o polio -f
+          --graalvm-java-version 25 --graalvm-version 25.0.1
+          --graalvm-args --no-fallback
+          --graalvm-args -Os
+          --graalvm-args -Dsun.misc.unsafe.memory.access=allow
       - name: Smoke test
         run: ./polio version
       - uses: actions/upload-artifact@v4
