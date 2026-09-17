@@ -35,6 +35,9 @@ private enum Action {
 
   /** polio remove: stop tracking the file or directory at path. */
   case Remove(path: String)
+
+  /** polio updates: setting turns the check for a newer polio on or off; without one it is reported. */
+  case Updates(setting: Option[String])
 }
 
 private val initCommand: Opts[Action] =
@@ -75,6 +78,10 @@ private val removeCommand: Opts[Action] =
   Opts.subcommand("remove", "stop tracking a file or directory (host copies stay)"):
     Opts.argument[String]("path").map(Action.Remove(_))
 
+private val updatesCommand: Opts[Action] =
+  Opts.subcommand("updates", "turn the check for a newer polio on or off, or show the setting"):
+    Opts.argument[String]("on|off").orNone.map(Action.Updates(_))
+
 /**
  * The flags every command takes. run removes them from the command line before the parser sees it, so
  * here they only describe themselves in the help text.
@@ -104,6 +111,7 @@ private val command: Command[Action] = {
       <+> statusCommand
       <+> addCommand
       <+> removeCommand
+      <+> updatesCommand
   Command(
     name = "polio",
     header =
@@ -131,6 +139,7 @@ object Main extends IOApp {
       case Action.ShowStatus   => status
       case Action.Add(path)    => add(path)
       case Action.Remove(path) => remove(path)
+      case Action.Updates(set) => updates(set)
     program.attemptNarrow[PolioError].flatMap:
       case Right(report) =>
         val text = report.render(style)

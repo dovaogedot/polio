@@ -1,0 +1,18 @@
+# Checks on every push and pull request. The native binary is not built here: it takes minutes on
+# each platform, and the release workflow builds it for the tag that ships.
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: The npm shim
+        run: node --test npm/test/*.test.mjs

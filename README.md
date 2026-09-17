@@ -26,6 +26,7 @@ polio sync --abort                          # discard parked conflicts; both sid
 polio status                                # every tracked file and what sync would do; reads local state only
 polio -q <command>                          # --quiet: suppress stdout; -s / --shush suppresses stderr too
 polio remove ~/.bashrc                      # untrack (the host copy stays)
+polio updates off                           # stop the check for a newer polio (on / no argument shows the setting)
 ```
 
 With two machines:
@@ -69,6 +70,27 @@ to tell which side changed:
 - Skip parks a copy with conflict markers under `~/.local/share/polio/conflicts` and leaves
   both sides alone. Edit it until the markers are gone; the next sync applies
   it to both sides. `polio sync --abort` throws the parked copies away.
+
+A sync also looks for a newer polio, once a day, and prints a line when one is
+out:
+
+```
+polio 0.5.0 is out — run: npm install -g @dovaogedot/polio@latest
+```
+
+The line appears on every sync until you upgrade. The check comes with the npm
+package and asks the npm registry, so an install from the AUR or a release
+binary never sees it. `polio updates off` stops it and this host remembers that,
+`polio updates on` starts it again, and `polio updates` shows the setting.
+
+The check sends nothing about you and never holds a sync up: it runs while polio
+works, and an answer that has not arrived by the time polio is done is dropped
+and asked for again an hour later. A very short sync can outrun the answer, so a
+new release sometimes shows up a sync or two after it appears.
+
+It asks whichever registry npm would install from, so a `registry` line in your
+`.npmrc` is followed. The first sync after an install only starts the clock:
+what you just installed is the newest there is.
 
 polio syncs content, not permissions. Git records only whether a file is
 executable, so a mode like `600` never travels between hosts. A host file that

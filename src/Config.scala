@@ -36,6 +36,8 @@ final case class Layout(
   statePath: Path,
   /** Parked conflict copies that wait for a manual fix, stored by repo path. */
   conflictsDir: Path,
+  /** Whether this host looks for a newer polio. It sits beside the state and is never committed. */
+  updatePath: Path,
 ) {
 
   /** The repo copy of the file tracked at repoPath. */
@@ -107,6 +109,7 @@ object Layout {
       manifestPath = root / "repo/polio.json",
       statePath = stateDir / "state.json",
       conflictsDir = root / "conflicts",
+      updatePath = stateDir / "update.json",
     )
 }
 
@@ -137,7 +140,7 @@ private final case class Doc(version: Int, files: Map[String, String]) derives C
 private object Doc {
 
   /** Prints JSON with a two-space indent and no space before the colon. */
-  private val printer = Printer.spaces2.copy(colonLeft = "")
+  val printer = Printer.spaces2.copy(colonLeft = "")
 
   /**
    * The files listed in the document text. A broken document or an unsupported version is a Config

@@ -44,6 +44,9 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
   the dispatch to the commands.
 - `src/Config.scala`: `Layout` (the paths), `Manifest` (`polio.json`),
   `SyncState` (the per-host hashes), `Doc` (the JSON shape of both files).
+- `src/Update.scala`: `UpdateState`, the per-host `update.json` that says whether
+  the update check runs. The binary owns the setting and nothing else about the
+  check.
 - `src/Report.scala`: `Report`, what a command returns: `Row`s that render as a
   table, colored by `Tone`, with `Code` as the porcelain letters, and notes; `Style` carries the global output flags.
 - `src/Errors.scala`: `PolioError`, the only failures the CLI reports, and
@@ -60,6 +63,10 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 - `test/`: weaver suites and the `Sandbox` harness. A sandbox is a temporary
   home with its own polio data directory and bare remote; every process spawned
   through it sees that home. Terminal tests run the binary under `script`.
+- `npm/polio/bin/`: the shim that npm installs. `polio.js` spawns the binary for
+  this platform and prints the update note after it; `update.js` is the check,
+  covered by `npm/test/update.test.mjs` under `node --test` and run by
+  `.github/workflows/check.yml`.
 - `npm/`, `packaging/aur/`, `.github/workflows/release.yml`: publishing. A
   `v*` tag runs the workflow: native binaries for Linux and macOS, a GitHub
   release with checksums and a rendered `PKGBUILD`, and the npm packages through
@@ -70,6 +77,21 @@ export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 
 - Only `sync` talks to the remote, plus `bind` (and `init`, which calls it) for the clone. `add` and
   `remove` commit locally.
+- The update check belongs to the npm shim, not to the binary, so the binary
+  reaches no host but the configured remote. `npm/polio/bin/update.js` asks the
+  npm registry while the binary works, at most once every 24 hours, and prints
+  one line after polio exits. It never waits: an answer that has not arrived by
+  then is dropped. `npm-check.json` holds both times, and they throttle
+  separately: an answer stands for 24 hours, an attempt that brought none holds
+  the next one off for an hour. A sync shorter than a round trip to the registry
+  ends before the answer lands, which is why an attempt has to come round again
+  well before the day is out. The registry is the one npm would install from:
+  `npm_config_registry`, then `@dovaogedot:registry` or `registry` in the npmrc,
+  then npmjs.com. A host with no record yet only gets one written, because the
+  polio that just wrote it is the newest there is.
+- `polio updates [on|off]` writes `enabled` in `update.json`, beside
+  `npm-check.json` in the state directory. The binary writes the setting, the
+  shim writes the cache, and each file has one writer.
 - A sync folds the local commits into one before it pulls, so a push carries the
   net change and `status` reports the paths that differ from the remote.
 - A sync pushes only when the remote is missing commits.

@@ -89,6 +89,8 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: npm 11.5.1 or newer, the first version that supports trusted publishing
         run: npm install -g npm@latest && npm --version
+      - name: The npm shim
+        run: node --test npm/test/*.test.mjs
       - name: Assemble the packages
         run: node npm/assemble.mjs "${GITHUB_REF_NAME#v}" artifacts dist/npm
       - name: Publish the platform packages, then the main one
